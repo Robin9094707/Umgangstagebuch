@@ -13,3 +13,4 @@ build/
 keystore.properties
 
 !app/signing/umgangstagebuch.keystore
+*.apk
