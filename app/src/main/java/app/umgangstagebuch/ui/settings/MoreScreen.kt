@@ -234,7 +234,7 @@ fun MoreScreen(nav: NavController) {
             title = { Text("Backup importieren") },
             text = {
                 Text(
-                    "Gefunden: ${pv.entryCount} Einträge, ${pv.visitCount} Umgänge, ${pv.photos.size} Fotos" +
+                    "Gefunden: ${pv.entryCount} Einträge, ${pv.visitCount} Umgänge, ${pv.photoCount} Fotos" +
                         (pv.data.profile.childName.takeIf { it.isNotBlank() }?.let { " (Kind: $it)" } ?: "") + ".\n\n" +
                         "„Zusammenführen“ ergänzt fehlende Einträge und behält deine aktuellen Daten. " +
                         "„Ersetzen“ überschreibt alles. Vorher wird automatisch eine Sicherung im Ordner „sicherungen“ angelegt.",

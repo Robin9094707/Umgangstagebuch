@@ -33,7 +33,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,12 +58,10 @@ import app.umgangstagebuch.ui.components.PhotoGrid
 import app.umgangstagebuch.ui.components.SectionCard
 import app.umgangstagebuch.ui.theme.statusColors
 import app.umgangstagebuch.util.Fmt
-import kotlinx.coroutines.launch
 
 @Composable
 fun EntryDetailScreen(id: String, nav: NavController) {
     val repo = LocalRepo.current
-    val scope = rememberCoroutineScope()
     val data by repo.data.collectAsStateWithLifecycle()
     val photos by repo.photos.collectAsStateWithLifecycle()
     val entry = data.entries.firstOrNull { it.id == id }
@@ -198,7 +195,7 @@ fun EntryDetailScreen(id: String, nav: NavController) {
             confirm = "Löschen",
             destructive = true,
             icon = Icons.Outlined.Delete,
-            onConfirm = { scope.launch { repo.deleteEntry(entry.id); nav.popBackStack() } },
+            onConfirm = { nav.popBackStack(); repo.launch { deleteEntry(entry.id) } },
             onDismiss = { confirmDelete = false },
         )
     }

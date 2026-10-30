@@ -198,11 +198,11 @@ fun VisitDetailScreen(id: String, nav: NavController) {
             },
             confirmButton = {
                 Column(horizontalAlignment = Alignment.End) {
-                    TextButton(onClick = { scope.launch { repo.deleteVisit(visit.id); nav.popBackStack() }; showDelete = false }) {
+                    TextButton(onClick = { showDelete = false; nav.popBackStack(); repo.launch { deleteVisit(visit.id) } }) {
                         Text("Nur diesen Termin", color = MaterialTheme.colorScheme.error)
                     }
                     if (visit.seriesId != null) {
-                        TextButton(onClick = { scope.launch { repo.deleteVisit(visit.id, deleteSeries = true); nav.popBackStack() }; showDelete = false }) {
+                        TextButton(onClick = { showDelete = false; nav.popBackStack(); repo.launch { deleteVisit(visit.id, deleteSeries = true) } }) {
                             Text("Alle künftigen dieser Serie", color = MaterialTheme.colorScheme.error)
                         }
                     }

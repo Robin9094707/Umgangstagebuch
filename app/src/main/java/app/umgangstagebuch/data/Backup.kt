@@ -11,7 +11,8 @@ import java.util.zip.ZipOutputStream
 
 data class BackupPreview(
     val data: AppData,
-    val photos: Map<String, ByteArray>,
+    val source: Uri,
+    val photoCount: Int,
 ) {
     val entryCount get() = data.entries.size
     val visitCount get() = data.visits.size
@@ -44,46 +45,55 @@ class Backup(private val context: Context, private val repo: Repository) {
         } ?: throw IOException("Zieldatei konnte nicht geschrieben werden")
     }
 
+    private fun isZip(source: Uri): Boolean =
+        resolver.openInputStream(source)?.use { val h = ByteArray(2); it.read(h) == 2 && h[0] == 0x50.toByte() && h[1] == 0x4B.toByte() } == true
+
+    /** Liest nur die Daten und zählt die Fotos – Fotos werden erst beim Übernehmen gestreamt. */
     suspend fun read(source: Uri): BackupPreview = withContext(Dispatchers.IO) {
-        val bytes = resolver.openInputStream(source)?.use { it.readBytes() }
-            ?: throw IOException("Datei konnte nicht gelesen werden")
-        val isZip = bytes.size > 4 && bytes[0] == 0x50.toByte() && bytes[1] == 0x4B.toByte()
-        if (!isZip) {
-            val data = AppJson.decodeFromString(AppData.serializer(), bytes.decodeToString())
-            return@withContext BackupPreview(data, emptyMap())
+        if (!isZip(source)) {
+            val text = resolver.openInputStream(source)?.use { it.readBytes().decodeToString() }
+                ?: throw IOException("Datei konnte nicht gelesen werden")
+            return@withContext BackupPreview(AppJson.decodeFromString(AppData.serializer(), text), source, 0)
         }
         var data: AppData? = null
-        val photos = mutableMapOf<String, ByteArray>()
-        ZipInputStream(bytes.inputStream()).use { zip ->
-            while (true) {
-                val e = zip.nextEntry ?: break
-                val name = e.name.substringAfterLast('/')
-                when {
-                    e.isDirectory || name.isBlank() || name.contains("..") -> Unit
-                    e.name.endsWith(FolderStorage.DATA_FILE) ->
-                        data = AppJson.decodeFromString(AppData.serializer(), zip.readBytes().decodeToString())
-                    e.name.startsWith("${FolderStorage.PHOTO_DIR}/") -> photos[name] = zip.readBytes()
+        var photos = 0
+        resolver.openInputStream(source)?.use { raw ->
+            ZipInputStream(raw.buffered()).use { zip ->
+                while (true) {
+                    val e = zip.nextEntry ?: break
+                    when {
+                        e.isDirectory -> Unit
+                        e.name.endsWith(FolderStorage.DATA_FILE) ->
+                            data = AppJson.decodeFromString(AppData.serializer(), zip.readBytes().decodeToString())
+                        e.name.startsWith("${FolderStorage.PHOTO_DIR}/") -> photos++
+                    }
                 }
             }
-        }
-        BackupPreview(data ?: throw IOException("Keine Tagebuch-Daten in der Sicherung gefunden"), photos)
+        } ?: throw IOException("Datei konnte nicht gelesen werden")
+        BackupPreview(data ?: throw IOException("Keine Tagebuch-Daten in der Sicherung gefunden"), source, photos)
     }
 
     suspend fun apply(preview: BackupPreview, mode: ImportMode) {
         val tree = repo.folder ?: throw IOException("Kein Speicherordner gewählt")
         repo.storage.namedSnapshot(tree, "vor-import-${app.umgangstagebuch.util.Fmt.fileStamp()}.json", repo.data.value)
-        withContext(Dispatchers.IO) {
-            preview.photos.forEach { (name, bytes) ->
-                val mime = when (name.substringAfterLast('.').lowercase()) {
-                    "png" -> "image/png"; "heic" -> "image/heic"; "webp" -> "image/webp"; else -> "image/jpeg"
+        if (preview.photoCount > 0) withContext(Dispatchers.IO) {
+            resolver.openInputStream(preview.source)?.use { raw ->
+                ZipInputStream(raw.buffered()).use { zip ->
+                    while (true) {
+                        val e = zip.nextEntry ?: break
+                        val name = e.name.substringAfterLast('/')
+                        if (e.isDirectory || name.isBlank() || name.contains("..") || !e.name.startsWith("${FolderStorage.PHOTO_DIR}/")) continue
+                        val mime = when (name.substringAfterLast('.').lowercase()) {
+                            "png" -> "image/png"; "heic" -> "image/heic"; "webp" -> "image/webp"; else -> "image/jpeg"
+                        }
+                        repo.storage.writePhoto(tree, name, zip.readBytes(), mime)
+                    }
                 }
-                repo.storage.writePhoto(tree, name, bytes, mime)
             }
         }
-        val current = repo.data.value
         val merged = when (mode) {
             ImportMode.REPLACE -> preview.data
-            ImportMode.MERGE -> merge(current, preview.data)
+            ImportMode.MERGE -> merge(repo.data.value, preview.data)
         }
         repo.replaceAll(merged)
         repo.refreshPhotos()
