@@ -13,8 +13,10 @@ android {
         applicationId = "app.umgangstagebuch"
         minSdk = 29
         targetSdk = 36
-        versionCode = (System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1)
-        versionName = "1.0.${System.getenv("GITHUB_RUN_NUMBER") ?: "0"}"
+        // versionCode steigt immer; so lässt sich jede neue Version über die alte
+        // installieren, ohne Deinstallation und ohne Datenverlust.
+        versionCode = 100 + (System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 0)
+        versionName = "1.1.${System.getenv("GITHUB_RUN_NUMBER") ?: "0"}"
         androidResources.localeFilters += listOf("de")
     }
 

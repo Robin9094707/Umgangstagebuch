@@ -26,6 +26,7 @@ class FolderStorage(private val context: Context) {
     companion object {
         const val DATA_FILE = "umgangstagebuch.json"
         const val PHOTO_DIR = "fotos"
+        const val RECORDING_DIR = "aufnahmen"
         const val SNAPSHOT_DIR = "sicherungen"
         private const val KEEP_SNAPSHOTS = 30
     }
@@ -153,6 +154,33 @@ class FolderStorage(private val context: Context) {
 
     suspend fun deletePhoto(tree: Uri, name: String) = withContext(Dispatchers.IO) {
         runCatching { root(tree).findFile(PHOTO_DIR)?.findFile(name)?.delete() }
+    }
+
+    /** Liste aller Aufnahmen im Ordner: Dateiname → Uri. */
+    suspend fun recordingIndex(tree: Uri): Map<String, Uri> = withContext(Dispatchers.IO) {
+        runCatching {
+            root(tree).findFile(RECORDING_DIR)?.listFiles()?.mapNotNull { f -> f.name?.let { it to f.uri } }?.toMap()
+        }.getOrNull() ?: emptyMap()
+    }
+
+    /** Verschiebt eine fertige Aufnahme aus dem Zwischenspeicher in den Datenordner. */
+    suspend fun importRecording(tree: Uri, temp: java.io.File, name: String, mime: String): Uri = withContext(Dispatchers.IO) {
+        val d = dir(tree, RECORDING_DIR)
+        val f = d.findFile(name) ?: d.createFile(mime, name) ?: throw IOException("Aufnahme konnte nicht angelegt werden")
+        resolver.openOutputStream(f.uri, "wt")?.use { out -> temp.inputStream().use { it.copyTo(out) } }
+            ?: throw IOException("Aufnahme konnte nicht gespeichert werden")
+        f.uri
+    }
+
+    fun writeRecording(tree: Uri, name: String, bytes: ByteArray, mime: String): Uri? {
+        val d = dir(tree, RECORDING_DIR)
+        val f = d.findFile(name) ?: d.createFile(mime, name) ?: return null
+        resolver.openOutputStream(f.uri, "wt")?.use { it.write(bytes) } ?: return null
+        return f.uri
+    }
+
+    suspend fun deleteRecording(tree: Uri, name: String) = withContext(Dispatchers.IO) {
+        runCatching { root(tree).findFile(RECORDING_DIR)?.findFile(name)?.delete() }
     }
 
     /** Verkleinertes, korrekt gedrehtes Bild (z. B. für den PDF-Bericht). */

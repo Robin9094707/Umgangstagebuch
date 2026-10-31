@@ -23,6 +23,7 @@ data class ReportOptions(
     val includeEntries: Boolean = true,
     val includePhotos: Boolean = true,
     val includeChecksums: Boolean = true,
+    val includeRecordings: Boolean = true,
     val categories: Set<EntryCategory> = EntryCategory.entries.toSet(),
 )
 
@@ -80,6 +81,7 @@ class PdfReport(private val context: Context, private val repo: Repository) {
 
         val visits = data.visits.filter { it.start in o.from..o.to }.sortedBy { it.start }
         val entries = data.entries.filter { it.eventDate in o.from..o.to && it.category in o.categories }.sortedBy { it.eventDate }
+        val recordings = data.recordings.filter { it.startedAt in o.from..o.to }.sortedBy { it.startedAt }
 
         // Zusammenfassung
         heading("Zusammenfassung")
@@ -96,6 +98,7 @@ class PdfReport(private val context: Context, private val repo: Repository) {
             "Sonstige Absagen" to s.cancelledOther.toString(),
             "Noch geplant / ohne Status" to s.planned.toString(),
             "Dokumentierte Einträge" to entries.size.toString(),
+            "Tonaufnahmen" to recordings.size.toString(),
         )
         rows.forEach { (k, v) -> keyValue(k, v) }
 
@@ -107,6 +110,17 @@ class PdfReport(private val context: Context, private val repo: Repository) {
         if (o.includeEntries && entries.isNotEmpty()) {
             heading("Einträge")
             entries.forEach { e -> entryBlock(e, data, photos, o) }
+        }
+
+        if (o.includeRecordings && recordings.isNotEmpty()) {
+            heading("Tonaufnahmen")
+            text(
+                "Die folgenden Audioaufnahmen liegen als Dateien im Datenordner (Unterordner „aufnahmen“) bzw. in der Sicherung. " +
+                    "Die Prüfsumme belegt, dass die jeweilige Datei seit der Aufnahme nicht verändert wurde.",
+                small,
+            )
+            y += 4
+            recordings.forEach { r -> recordingBlock(r, o) }
         }
 
         y += 16
@@ -204,6 +218,21 @@ class PdfReport(private val context: Context, private val repo: Repository) {
             y += 2
             text("Prüfsumme (SHA-256): ${e.hash}", mono)
         }
+        y += 8
+    }
+
+    private fun recordingBlock(r: Recording, o: ReportOptions) {
+        ensure(40f)
+        y += 4
+        canvas.drawLine(margin, y, pageW - margin, y, line)
+        y += 10
+        val mins = r.durationMs / 60000; val secs = (r.durationMs / 1000) % 60
+        text("${Fmt.dateTime(r.startedAt)} Uhr  ·  Dauer ${mins}:${"%02d".format(secs)} Min.", h3)
+        if (r.title.isNotBlank()) text("Titel: ${r.title}", body)
+        text("Datei: ${r.fileName}", body)
+        r.location?.let { text("Ort: ${it.pretty()}" + (it.accuracy?.let { a -> " (±${a.toInt()} m)" } ?: ""), body) }
+        if (r.renames.isNotEmpty()) text("Umbenannt: ${r.renames.size}× (Titeländerungen; Inhalt unverändert)", small)
+        if (o.includeChecksums && r.sha256.isNotBlank()) text("Prüfsumme (SHA-256): ${r.sha256}", mono)
         y += 8
     }
 

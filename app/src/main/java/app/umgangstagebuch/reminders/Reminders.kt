@@ -1,6 +1,7 @@
 package app.umgangstagebuch.reminders
 
 import android.Manifest
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -36,6 +37,7 @@ import java.util.concurrent.TimeUnit
 object Reminders {
     const val CHANNEL_VISITS = "umgaenge"
     const val CHANNEL_JOURNAL = "tagebuch"
+    const val CHANNEL_RECORDING = "aufnahme"
     const val EXTRA_ROUTE = "route"
     private const val TAG = "visit-reminder"
     private const val WEEKLY = "weekly-reflection"
@@ -50,6 +52,13 @@ object Reminders {
         nm.createNotificationChannel(
             NotificationChannel(CHANNEL_JOURNAL, "Tagebuch", NotificationManager.IMPORTANCE_DEFAULT)
                 .apply { description = "Sanfte Erinnerung, Beobachtungen festzuhalten" },
+        )
+        nm.createNotificationChannel(
+            NotificationChannel(CHANNEL_RECORDING, "Aufnahme", NotificationManager.IMPORTANCE_LOW).apply {
+                description = "Zeigt an, dass eine Tonaufnahme läuft (von Android vorgeschrieben)"
+                setShowBadge(false)
+                lockscreenVisibility = Notification.VISIBILITY_SECRET
+            },
         )
     }
 

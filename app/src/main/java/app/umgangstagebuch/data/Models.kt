@@ -11,8 +11,50 @@ data class AppData(
     val profile: Profile = Profile(),
     val visits: List<Visit> = emptyList(),
     val entries: List<Entry> = emptyList(),
+    val recordings: List<Recording> = emptyList(),
     val savedAt: Long = 0L,
 )
+
+@Serializable
+data class GeoPoint(
+    val lat: Double,
+    val lng: Double,
+    val accuracy: Float? = null,
+    val capturedAt: Long = 0L,
+) {
+    /** Kurze, lesbare Koordinatenangabe. */
+    fun pretty(): String {
+        fun fmt(v: Double, pos: String, neg: String) = "%.5f° %s".format(kotlin.math.abs(v), if (v >= 0) pos else neg)
+        return "${fmt(lat, "N", "S")}, ${fmt(lng, "O", "W")}"
+    }
+}
+
+@Serializable
+data class RecordingRename(val at: Long, val from: String, val to: String)
+
+@Serializable
+data class Recording(
+    val id: String = newId(),
+    /** Dateiname im Ordner „aufnahmen". */
+    val fileName: String,
+    /** Fest: Beginn der Aufnahme. */
+    val startedAt: Long,
+    /** Fest: Zeitpunkt, zu dem die Aufnahme gespeichert wurde. */
+    val createdAt: Long,
+    val durationMs: Long,
+    /** Einziges änderbares Feld. */
+    val title: String = "",
+    /** Fest: Ort, an dem aufgenommen wurde. */
+    val location: GeoPoint? = null,
+    /** Lautstärkeverlauf (0..100) zum Anzeigen der Wellenform. */
+    val waveform: List<Int> = emptyList(),
+    val sha256: String = "",
+    val mimeType: String = "audio/mp4",
+    val renames: List<RecordingRename> = emptyList(),
+) {
+    fun displayTitle(index: Int = 0): String =
+        title.ifBlank { "Aufnahme" + (if (index > 0) " $index" else "") }
+}
 
 @Serializable
 data class Profile(

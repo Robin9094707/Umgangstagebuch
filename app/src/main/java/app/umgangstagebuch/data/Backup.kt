@@ -13,6 +13,7 @@ data class BackupPreview(
     val data: AppData,
     val source: Uri,
     val photoCount: Int,
+    val recordingCount: Int = 0,
 ) {
     val entryCount get() = data.entries.size
     val visitCount get() = data.visits.size
@@ -41,6 +42,14 @@ class Backup(private val context: Context, private val repo: Repository) {
                         zip.closeEntry()
                     }
                 }
+                val recNames = data.recordings.map { it.fileName }.toSet()
+                repo.recordingFiles.value.filterKeys { it in recNames }.forEach { (name, uri) ->
+                    resolver.openInputStream(uri)?.use { input ->
+                        zip.putNextEntry(ZipEntry("${FolderStorage.RECORDING_DIR}/$name"))
+                        input.copyTo(zip)
+                        zip.closeEntry()
+                    }
+                }
             }
         } ?: throw IOException("Zieldatei konnte nicht geschrieben werden")
     }
@@ -57,6 +66,7 @@ class Backup(private val context: Context, private val repo: Repository) {
         }
         var data: AppData? = null
         var photos = 0
+        var recordings = 0
         resolver.openInputStream(source)?.use { raw ->
             ZipInputStream(raw.buffered()).use { zip ->
                 while (true) {
@@ -66,11 +76,12 @@ class Backup(private val context: Context, private val repo: Repository) {
                         e.name.endsWith(FolderStorage.DATA_FILE) ->
                             data = AppJson.decodeFromString(AppData.serializer(), zip.readBytes().decodeToString())
                         e.name.startsWith("${FolderStorage.PHOTO_DIR}/") -> photos++
+                        e.name.startsWith("${FolderStorage.RECORDING_DIR}/") -> recordings++
                     }
                 }
             }
         } ?: throw IOException("Datei konnte nicht gelesen werden")
-        BackupPreview(data ?: throw IOException("Keine Tagebuch-Daten in der Sicherung gefunden"), source, photos)
+        BackupPreview(data ?: throw IOException("Keine Tagebuch-Daten in der Sicherung gefunden"), source, photos, recordings)
     }
 
     suspend fun apply(preview: BackupPreview, mode: ImportMode) {
@@ -91,19 +102,34 @@ class Backup(private val context: Context, private val repo: Repository) {
                 }
             }
         }
+        if (preview.recordingCount > 0) withContext(Dispatchers.IO) {
+            resolver.openInputStream(preview.source)?.use { raw ->
+                ZipInputStream(raw.buffered()).use { zip ->
+                    while (true) {
+                        val e = zip.nextEntry ?: break
+                        val name = e.name.substringAfterLast('/')
+                        if (e.isDirectory || name.isBlank() || name.contains("..") || !e.name.startsWith("${FolderStorage.RECORDING_DIR}/")) continue
+                        repo.storage.writeRecording(tree, name, zip.readBytes(), "audio/mp4")
+                    }
+                }
+            }
+        }
         val merged = when (mode) {
             ImportMode.REPLACE -> preview.data
             ImportMode.MERGE -> merge(repo.data.value, preview.data)
         }
         repo.replaceAll(merged)
         repo.refreshPhotos()
+        repo.refreshRecordings()
     }
 
     private fun merge(a: AppData, b: AppData): AppData {
         val visits = (a.visits + b.visits).groupBy { it.id }.map { (_, v) -> v.maxBy { it.updatedAt } }.sortedBy { it.start }
         val entries = (a.entries + b.entries).groupBy { it.id }.map { (_, v) -> v.maxBy { it.updatedAt } }
             .sortedByDescending { it.eventDate }
+        val recordings = (a.recordings + b.recordings).groupBy { it.id }.map { (_, v) -> v.first() }
+            .sortedByDescending { it.startedAt }
         val profile = if (a.profile.isComplete) a.profile else b.profile
-        return a.copy(profile = profile, visits = visits, entries = entries)
+        return a.copy(profile = profile, visits = visits, entries = entries, recordings = recordings)
     }
 }

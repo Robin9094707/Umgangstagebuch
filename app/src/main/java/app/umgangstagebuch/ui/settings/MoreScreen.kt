@@ -149,7 +149,7 @@ fun MoreScreen(nav: NavController) {
 
             SectionCard(title = "Berichte & Sicherung", contentPadding = PaddingValues(12.dp)) {
                 ListRow("PDF-Bericht erstellen", subtitle = "Für Jugendamt, Anwalt oder Gericht", icon = Icons.Outlined.PictureAsPdf, onClick = { nav.navigate(Routes.REPORT) })
-                ListRow("Backup exportieren", subtitle = "Alle Daten & Fotos als ZIP-Datei", icon = Icons.Outlined.Backup, onClick = {
+                ListRow("Backup exportieren", subtitle = "Alle Daten, Fotos & Aufnahmen als ZIP-Datei", icon = Icons.Outlined.Backup, onClick = {
                     exportLauncher.launch("Umgangstagebuch-Backup_${Fmt.fileStamp()}.zip")
                 })
                 ListRow("Backup importieren", subtitle = "Aus einer ZIP- oder JSON-Datei", icon = Icons.Outlined.Restore, onClick = {
@@ -234,7 +234,7 @@ fun MoreScreen(nav: NavController) {
             title = { Text("Backup importieren") },
             text = {
                 Text(
-                    "Gefunden: ${pv.entryCount} Einträge, ${pv.visitCount} Umgänge, ${pv.photoCount} Fotos" +
+                    "Gefunden: ${pv.entryCount} Einträge, ${pv.visitCount} Umgänge, ${pv.photoCount} Fotos, ${pv.recordingCount} Aufnahmen" +
                         (pv.data.profile.childName.takeIf { it.isNotBlank() }?.let { " (Kind: $it)" } ?: "") + ".\n\n" +
                         "„Zusammenführen“ ergänzt fehlende Einträge und behält deine aktuellen Daten. " +
                         "„Ersetzen“ überschreibt alles. Vorher wird automatisch eine Sicherung im Ordner „sicherungen“ angelegt.",

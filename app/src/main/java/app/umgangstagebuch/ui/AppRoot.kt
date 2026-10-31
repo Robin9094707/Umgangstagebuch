@@ -25,6 +25,8 @@ import androidx.compose.material.icons.filled.AutoStories
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.AutoStories
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.FolderOpen
@@ -78,6 +80,8 @@ import app.umgangstagebuch.ui.journal.EntryDetailScreen
 import app.umgangstagebuch.ui.journal.EntryEditorScreen
 import app.umgangstagebuch.ui.journal.JournalScreen
 import app.umgangstagebuch.ui.onboarding.OnboardingScreen
+import app.umgangstagebuch.ui.recordings.RecordingDetailScreen
+import app.umgangstagebuch.ui.recordings.RecordingsScreen
 import app.umgangstagebuch.ui.settings.MoreScreen
 import app.umgangstagebuch.ui.settings.ProfileScreen
 import app.umgangstagebuch.ui.settings.ReportScreen
@@ -101,6 +105,8 @@ object Routes {
         val params = listOfNotNull(id?.let { "id=$it" }, visitId?.let { "visitId=$it" }, category?.let { "category=$it" }, "wizard=$wizard")
         return "entry_edit?" + params.joinToString("&")
     }
+    const val RECORDINGS = "recordings"
+    fun recording(id: String) = "recording/$id"
 }
 
 private data class Tab(val route: String, val label: String, val icon: ImageVector, val selectedIcon: ImageVector)
@@ -109,6 +115,7 @@ private val tabs = listOf(
     Tab(Routes.HOME, "Übersicht", Icons.Outlined.Home, Icons.Filled.Home),
     Tab(Routes.VISITS, "Umgänge", Icons.Outlined.CalendarMonth, Icons.Filled.CalendarMonth),
     Tab(Routes.JOURNAL, "Tagebuch", Icons.Outlined.AutoStories, Icons.Filled.AutoStories),
+    Tab(Routes.RECORDINGS, "Aufnahme", Icons.Outlined.Mic, Icons.Filled.Mic),
     Tab(Routes.MORE, "Mehr", Icons.Outlined.Menu, Icons.Filled.Menu),
 )
 
@@ -163,6 +170,7 @@ private fun MainScaffold(snackbar: SnackbarHostState, pendingRoute: String?, onR
             r.startsWith("report/") -> nav.navigate(Routes.entryEdit(visitId = r.removePrefix("report/"), category = "VISIT_REPORT", wizard = true))
             r.startsWith("visit/") -> nav.navigate(r)
             r == "entry_new" -> nav.navigate(Routes.entryEdit())
+            r == Routes.RECORDINGS -> nav.switchTab(Routes.RECORDINGS)
         }
         onRouteConsumed()
     }
@@ -197,7 +205,11 @@ private fun MainScaffold(snackbar: SnackbarHostState, pendingRoute: String?, onR
             composable(Routes.HOME) { HomeScreen(nav) }
             composable(Routes.VISITS) { VisitsScreen(nav) }
             composable(Routes.JOURNAL) { JournalScreen(nav) }
+            composable(Routes.RECORDINGS) { RecordingsScreen(nav) }
             composable(Routes.MORE) { MoreScreen(nav) }
+            composable("recording/{id}", arguments = listOf(navArgument("id") { type = NavType.StringType })) {
+                RecordingDetailScreen(it.arguments?.getString("id").orEmpty(), nav)
+            }
             composable(Routes.PROFILE) { ProfileScreen(nav) }
             composable(Routes.REPORT) { ReportScreen(nav) }
             composable("visit/{id}", arguments = listOf(navArgument("id") { type = NavType.StringType })) {

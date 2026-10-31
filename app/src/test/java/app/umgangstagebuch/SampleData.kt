@@ -6,7 +6,9 @@ import app.umgangstagebuch.data.CancelledBy
 import app.umgangstagebuch.data.Channel
 import app.umgangstagebuch.data.Entry
 import app.umgangstagebuch.data.EntryCategory
+import app.umgangstagebuch.data.GeoPoint
 import app.umgangstagebuch.data.Handover
+import app.umgangstagebuch.data.Recording
 import app.umgangstagebuch.data.Profile
 import app.umgangstagebuch.data.Punctuality
 import app.umgangstagebuch.data.Visit
@@ -64,5 +66,21 @@ object SampleData {
         e(Entry(id = "e4", eventDate = at(-2, 9, 0), category = EntryCategory.SCHOOL, title = "Rückmeldung der Kita", text = "Erzieherin berichtet, Lena sei montags oft unruhig.", moodAfter = 3)),
     )
 
-    val data = AppData(profile = profile, visits = visits, entries = entries)
+    private fun wave(n: Int) = (0 until n).map { (30 + 60 * kotlin.math.abs(kotlin.math.sin(it * 0.4))).toInt() }
+
+    val recordings = listOf(
+        Recording(
+            id = "r1", fileName = "aufnahme_1.m4a", startedAt = at(-5, 17, 55), createdAt = at(-5, 18, 2),
+            durationMs = 192_000, title = "Übergabe am Bahnhof",
+            location = GeoPoint(52.52437, 13.36930, 12f, at(-5, 17, 55)),
+            waveform = wave(80), sha256 = "b1946ac92492d2347c6235b4d2611184a1b4f2e9c1d5f0b6c3a7e8d9f0a1b2c3",
+        ),
+        Recording(
+            id = "r2", fileName = "aufnahme_2.m4a", startedAt = at(-19, 18, 5), createdAt = at(-19, 18, 9),
+            durationMs = 78_000, title = "",
+            waveform = wave(60), sha256 = "d2c3b4a5968778695a4b3c2d1e0f9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f",
+        ),
+    )
+
+    val data = AppData(profile = profile, visits = visits, entries = entries, recordings = recordings)
 }

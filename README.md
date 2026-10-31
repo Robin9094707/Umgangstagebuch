@@ -17,7 +17,12 @@ wie die Umgänge laufen, wie es dem Kind vorher und nachher geht, Absagen, Über
   Stimmungsskala, Beobachtungs-Chips, Fotos (Kamera & Galerie), Suche und Filter.
 - **Beweissicherung**: Erfassungszeitpunkt wird automatisch gesetzt, jede Änderung wird mit Zeitstempel und früherer
   Fassung protokolliert, SHA-256-Prüfsummen für Einträge und Fotos (Originalfotos inkl. Aufnahmedaten).
-- **PDF-Bericht** für Jugendamt, Anwalt oder Gericht – sachlich, mit Statistik, Absagen, Einträgen, Fotos und Prüfsummen.
+- **Tonaufnahmen**: im Hintergrund aufnehmen (läuft weiter bei ausgeschaltetem Bildschirm, Start/Stopp über die App),
+  mit automatisch festgehaltenem Datum, Uhrzeit und Ort. Abspielen mit Wellenform-Ansicht, Umbenennen und Löschen mit
+  Bestätigung. Datum, Uhrzeit, Ort und SHA-256-Prüfsumme bleiben als Nachweis fest – nur der Titel ist änderbar.
+  *Hinweis in der App:* Heimliche Tonaufnahmen sind vor Gericht oft nicht verwertbar (§ 201 StGB); Android verlangt
+  während der Aufnahme eine kleine Benachrichtigung.
+- **PDF-Bericht** für Jugendamt, Anwalt oder Gericht – sachlich, mit Statistik, Absagen, Einträgen, Fotos, Aufnahmen-Liste und Prüfsummen.
 - **Erinnerungen**: vor jedem Umgang, danach „Wie war der Umgang?“, optional ein wöchentlicher Rückblick.
 - **Backup** als ZIP exportieren/importieren (zusammenführen oder ersetzen), tägliche automatische Sicherungen.
 - **App-Sperre** per Fingerabdruck / Gesicht / PIN, Hell-/Dunkelmodus, Farben vom Hintergrundbild (Material You).

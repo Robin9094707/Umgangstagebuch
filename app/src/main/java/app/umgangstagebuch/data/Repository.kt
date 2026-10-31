@@ -37,6 +37,9 @@ class Repository(private val context: Context, val prefs: Prefs) {
     private val _photos = MutableStateFlow<Map<String, Uri>>(emptyMap())
     val photos: StateFlow<Map<String, Uri>> = _photos.asStateFlow()
 
+    private val _recordings = MutableStateFlow<Map<String, Uri>>(emptyMap())
+    val recordingFiles: StateFlow<Map<String, Uri>> = _recordings.asStateFlow()
+
     private val _messages = MutableSharedFlow<String>(extraBufferCapacity = 8)
     val messages: SharedFlow<String> = _messages.asSharedFlow()
 
@@ -63,6 +66,7 @@ class Repository(private val context: Context, val prefs: Prefs) {
             else -> runCatching {
                 _data.value = storage.load(uri) ?: AppData()
                 _photos.value = storage.photoIndex(uri)
+                _recordings.value = storage.recordingIndex(uri)
                 _state.value = RepoState.Ready
                 Reminders.reschedule(context, _data.value, prefs.current)
             }.onFailure {
@@ -94,6 +98,7 @@ class Repository(private val context: Context, val prefs: Prefs) {
             storage.save(uri, _data.value.copy(savedAt = System.currentTimeMillis()))
         }
         _photos.value = storage.photoIndex(uri)
+        _recordings.value = storage.recordingIndex(uri)
         _state.value = RepoState.Ready
     }
 
@@ -102,6 +107,7 @@ class Repository(private val context: Context, val prefs: Prefs) {
         _data.value = data
         storage.save(uri, data.copy(savedAt = System.currentTimeMillis()))
         _photos.value = storage.photoIndex(uri)
+        _recordings.value = storage.recordingIndex(uri)
         prefs.update { it.copy(onboardingDone = true) }
         _state.value = RepoState.Ready
         Reminders.reschedule(context, data, prefs.current)
@@ -112,15 +118,19 @@ class Repository(private val context: Context, val prefs: Prefs) {
         val old = prefs.current.folderUri
         storage.takePermission(newUri)
         if (storage.hasData(newUri)) error("Im gewählten Ordner liegt bereits ein Tagebuch. Bitte einen leeren Ordner wählen oder das Backup importieren.")
-        val oldPhotos = _photos.value
-        oldPhotos.forEach { (name, uri) ->
+        _photos.value.forEach { (name, uri) ->
             val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return@forEach
             storage.writePhoto(newUri, name, bytes, context.contentResolver.getType(uri) ?: "image/jpeg")
+        }
+        _recordings.value.forEach { (name, uri) ->
+            val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return@forEach
+            storage.writeRecording(newUri, name, bytes, context.contentResolver.getType(uri) ?: "audio/mp4")
         }
         storage.save(newUri, _data.value.copy(savedAt = System.currentTimeMillis()))
         prefs.update { it.copy(folderUri = newUri) }
         if (old != null && old != newUri) storage.releaseOtherPermissions(newUri)
         _photos.value = storage.photoIndex(newUri)
+        _recordings.value = storage.recordingIndex(newUri)
     }
 
     private suspend fun mutate(block: (AppData) -> AppData): Boolean = mutex.withLock {
@@ -214,6 +224,42 @@ class Repository(private val context: Context, val prefs: Prefs) {
 
     suspend fun refreshPhotos() {
         prefs.current.folderUri?.let { _photos.value = storage.photoIndex(it) }
+    }
+
+    suspend fun refreshRecordings() {
+        prefs.current.folderUri?.let { _recordings.value = storage.recordingIndex(it) }
+    }
+
+    /** Fertige Aufnahme aus dem Zwischenspeicher übernehmen. Metadaten sind unveränderlich. */
+    suspend fun addRecording(rec: Recording, temp: java.io.File): Boolean {
+        val uri = prefs.current.folderUri ?: return false
+        return runCatching {
+            val fileUri = storage.importRecording(uri, temp, rec.fileName, rec.mimeType)
+            _recordings.value = _recordings.value + (rec.fileName to fileUri)
+            mutate { d -> d.copy(recordings = (d.recordings + rec).sortedByDescending { it.startedAt }) }
+        }.onFailure { message("Aufnahme konnte nicht gespeichert werden: ${it.message}") }
+            .onSuccess { runCatching { temp.delete() } }
+            .isSuccess
+    }
+
+    /** Einziges änderbares Feld einer Aufnahme: der Titel. */
+    suspend fun renameRecording(id: String, newTitle: String): Boolean {
+        val rec = _data.value.recordings.firstOrNull { it.id == id } ?: return false
+        val clean = newTitle.trim()
+        if (clean == rec.title) return true
+        val rename = RecordingRename(System.currentTimeMillis(), rec.title, clean)
+        return mutate { d ->
+            d.copy(recordings = d.recordings.map { if (it.id == id) it.copy(title = clean, renames = it.renames + rename) else it })
+        }
+    }
+
+    suspend fun deleteRecording(id: String) {
+        val uri = prefs.current.folderUri ?: return
+        val rec = _data.value.recordings.firstOrNull { it.id == id } ?: return
+        if (mutate { d -> d.copy(recordings = d.recordings.filterNot { it.id == id }) }) {
+            storage.deleteRecording(uri, rec.fileName)
+            _recordings.value = storage.recordingIndex(uri)
+        }
     }
 
     /** Nur für Tests und Vorschauen: Daten direkt setzen, ohne Ordner. */

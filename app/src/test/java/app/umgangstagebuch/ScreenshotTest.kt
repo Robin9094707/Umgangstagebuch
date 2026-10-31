@@ -132,4 +132,13 @@ class ScreenshotTest {
         start(AppData(profile = SampleData.profile))
         shot("16_home_empty")
     }
+
+    @Test
+    fun recordings() {
+        start(SampleData.data)
+        tap("Aufnahme")
+        shot("17_recordings")
+        tap("Übergabe am Bahnhof")
+        shot("18_recording_detail")
+    }
 }

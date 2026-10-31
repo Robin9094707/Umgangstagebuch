@@ -83,6 +83,7 @@ fun ReportScreen(nav: NavController) {
     var includeEntries by remember { mutableStateOf(true) }
     var includePhotos by remember { mutableStateOf(true) }
     var includeChecksums by remember { mutableStateOf(true) }
+    var includeRecordings by remember { mutableStateOf(true) }
     var categories by remember { mutableStateOf(EntryCategory.entries.toSet()) }
     var busy by remember { mutableStateOf(false) }
     var result by remember { mutableStateOf<Uri?>(null) }
@@ -98,7 +99,7 @@ fun ReportScreen(nav: NavController) {
     val options = ReportOptions(
         from = Fmt.millis(from), to = Fmt.millis(to, LocalTime.MAX),
         includeVisits = includeVisits, includeEntries = includeEntries, includePhotos = includePhotos,
-        includeChecksums = includeChecksums, categories = categories,
+        includeChecksums = includeChecksums, includeRecordings = includeRecordings, categories = categories,
     )
     val entryCount = data.entries.count { it.eventDate in options.from..options.to && it.category in categories }
     val visitCount = data.visits.count { it.start in options.from..options.to }
@@ -145,6 +146,7 @@ fun ReportScreen(nav: NavController) {
                 Toggle("Umgangstermine & Absagen", includeVisits) { includeVisits = it }
                 Toggle("Tagebucheinträge", includeEntries) { includeEntries = it }
                 Toggle("Fotos einbetten", includePhotos) { includePhotos = it }
+                Toggle("Tonaufnahmen auflisten", includeRecordings) { includeRecordings = it }
                 Toggle("Prüfsummen anzeigen", includeChecksums) { includeChecksums = it }
             }
             if (includeEntries) {
